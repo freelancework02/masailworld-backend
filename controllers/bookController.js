@@ -3,7 +3,7 @@ const db = require('../db');
 // GET all books (excluding BookCover/PDFFile binary data)
 exports.getAllBooks = (req, res) => {
   db.query(
-    'SELECT BookID, BookName, Author FROM Books',
+    'SELECT BookID, BookName, Author, InsertedDate FROM Books',
     (err, results) => {
       if (err) return res.status(500).send(err);
       res.json(results);

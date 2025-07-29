@@ -3,7 +3,7 @@ const db = require('../db');
 // Fetch ALL articles (excluding the image buffer)
 exports.getAllArticles = (req, res) => {
   db.query(
-    'SELECT ArticleID, Title, Slug, Tags, Description, Writer, ArticleDescription FROM Article',
+    'SELECT ArticleID, Title, Slug, Tags, Description, Writer, ArticleDescription, InsertedDate FROM Article',
     (err, results) => {
       if (err) return res.status(500).send(err);
       res.json(results);

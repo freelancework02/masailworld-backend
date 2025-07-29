@@ -18,3 +18,52 @@ exports.createTopic = (req, res) => {
     }
   );
 };
+
+
+
+// UPDATE topic (partial, by ID)
+exports.updateTopic = (req, res) => {
+  const { id } = req.params;
+  const { TopicName, IconClass } = req.body;
+  const fields = [];
+  const values = [];
+
+  if (TopicName !== undefined) {
+    fields.push('TopicName = ?');
+    values.push(TopicName);
+  }
+  if (IconClass !== undefined) {
+    fields.push('IconClass = ?');
+    values.push(IconClass);
+  }
+
+  if (!fields.length) {
+    return res.status(400).json({ error: 'No fields to update' });
+  }
+
+  values.push(id);
+  db.query(
+    `UPDATE Topic SET ${fields.join(', ')} WHERE TopicID = ?`,
+    values,
+    (err, result) => {
+      if (err) return res.status(500).send(err);
+      if (result.affectedRows === 0) return res.status(404).json({ error: 'Topic not found' });
+      res.json({ message: 'Topic updated' });
+    }
+  );
+};
+
+
+
+exports.getTopicById = (req, res) => {
+  const { id } = req.params;
+  db.query(
+    'SELECT * FROM Topic WHERE TopicID = ?',
+    [id],
+    (err, results) => {
+      if (err) return res.status(500).send(err);
+      if (!results.length) return res.status(404).json({ error: 'Topic not found' });
+      res.json(results[0]);
+    }
+  );
+};
