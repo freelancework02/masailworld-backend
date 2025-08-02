@@ -3,7 +3,7 @@ const pool = require('../db'); // Adjust path if needed
 // 1. Create a new user
 exports.createUser = async (req, res) => {
     const { username, email, password } = req.body;
-
+    console.log('Received request:', username, email);
     if (!username || !email || !password) {
         return res.status(400).json({ error: 'All fields are required.' });
     }
@@ -13,12 +13,16 @@ exports.createUser = async (req, res) => {
             'INSERT INTO User (Username, Email, Password) VALUES (?, ?, ?)',
             [username, email, password]
         );
+        console.log('Insert result:', result);
         res.status(201).json({ message: 'User created successfully', userId: result.insertId });
+        return;  // <=== add this return here 
     } catch (error) {
         console.error('Create user error:', error);
-        res.status(500).json({ error: 'Database error while creating user.' });
+        return res.status(500).json({ error: 'Database error while creating user.' });  // add return here too
     }
 };
+
+ 
 
 // 2. Get all users
 exports.getAllUsers = async (req, res) => {
