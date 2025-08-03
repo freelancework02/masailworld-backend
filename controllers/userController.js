@@ -2,27 +2,40 @@ const pool = require('../db'); // Adjust path if needed
 
 // 1. Create a new user
 exports.createUser = async (req, res) => {
-    const { username, email, password } = req.body;
-    console.log('Received request:', username, email);
-    if (!username || !email || !password) {
-        return res.status(400).json({ error: 'All fields are required.' });
+  const { username, email, password, CreatedByID, CreatedByUsername } = req.body;
+
+  if (!username || !email || !password)
+    return res.status(400).json({ error: 'Username, email, and password are required.' });
+
+  try {
+    const rows = await pool.query('SELECT * FROM User WHERE Username = ? OR Email = ?', [username, email]);
+    
+    if (rows.length > 0) {
+      return res.status(409).json({ error: 'Username or Email already exists.' });
     }
 
-    try {
-        const [result] = await pool.query(
-            'INSERT INTO User (Username, Email, Password) VALUES (?, ?, ?)',
-            [username, email, password]
-        );
-        console.log('Insert result:', result);
-        res.status(201).json({ message: 'User created successfully', userId: result.insertId });
-        return;  // <=== add this return here 
-    } catch (error) {
-        console.error('Create user error:', error);
-        return res.status(500).json({ error: 'Database error while creating user.' });  // add return here too
-    }
+    // Store hashed password if preferred
+    // const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Insert user with creator info
+    const result = await pool.query(
+      `INSERT INTO User 
+        (Username, Email, Password, CreatedByID, CreatedByUsername) 
+        VALUES (?, ?, ?, ?, ?)`,
+      [username, email, password /* or hashedPassword */, CreatedByID || null, CreatedByUsername || null]
+    );
+
+    res.status(201).json({ success: true, userId: result.insertId, username });
+
+  } catch (error) {
+    console.error('Create user error:', error);
+    res.status(500).json({ error: 'Server error creating user.' });
+  }
 };
 
- 
+
+
+  
 
 // 2. Get all users
 exports.getAllUsers = async (req, res) => {

@@ -1,27 +1,28 @@
-// db.js
-const mysql = require('mysql2/promise'); 
+const mysql = require('mysql');
 const dotenv = require('dotenv');
+const util = require('util');
 dotenv.config();
 
-// Use a pool to manage multiple connections efficiently
 const pool = mysql.createPool({
-  connectionLimit: 10,                  // Adjust based on your expected load
+  connectionLimit: 10,
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  port: 3306                            // Use 3306 for MySQL, not 5000
+  port: 3306,
 });
 
-// Test the connection pool
 pool.getConnection((err, connection) => {
   if (err) {
     console.error('❌ Error connecting to MySQL pool:', err.message);
     process.exit(1);
   } else {
     console.log('✅ MySQL pool connected successfully!');
-    connection.release(); // Important: release the connection back to the pool
+    connection.release();
   }
 });
+
+// Promisify pool.query to use async/await
+pool.query = util.promisify(pool.query);
 
 module.exports = pool;

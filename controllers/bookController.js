@@ -3,7 +3,7 @@ const db = require('../db');
 // GET all books (excluding BookCover/PDFFile binary data)
 exports.getAllBooks = (req, res) => {
   db.query(
-    'SELECT BookID, BookName, Author, InsertedDate FROM Books',
+    'SELECT BookID, BookName, Author, InsertedDate, TopicName, TopicID FROM Books',
     (err, results) => {
       if (err) return res.status(500).send(err);
       res.json(results);
@@ -15,7 +15,7 @@ exports.getAllBooks = (req, res) => {
 exports.getBookById = (req, res) => {
   const { id } = req.params;
   db.query(
-    'SELECT BookID, BookName, Author FROM Books WHERE BookID = ?',
+    'SELECT BookID, BookName, Author, TopicName, TopicID FROM Books WHERE BookID = ?',
     [id],
     (err, results) => {
       if (err) return res.status(500).send(err);
@@ -58,13 +58,26 @@ exports.getBookPdf = (req, res) => {
 };
 
 // CREATE book (store cover and PDF as blobs)
+
 exports.createBook = (req, res) => {
-  const { BookName, Author } = req.body;
+  const { BookName, Author, TopicID, TopicName, CreatedByID, CreatedByUsername } = req.body;
+
   const BookCover = req.files && req.files['BookCover'] ? req.files['BookCover'][0].buffer : null;
   const PDFFile = req.files && req.files['PDFFile'] ? req.files['PDFFile'][0].buffer : null;
+
+  if (!CreatedByID || !CreatedByUsername) {
+    return res.status(400).json({ error: 'CreatedByID and CreatedByUsername are required.' });
+  }
+
+  const sql = `
+    INSERT INTO Books
+      (BookName, Author, BookCover, PDFFile, TopicName, TopicID, CreatedByID, CreatedByUsername)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+
   db.query(
-    'INSERT INTO Books (BookName, Author, BookCover, PDFFile) VALUES (?, ?, ?, ?)',
-    [BookName, Author, BookCover, PDFFile],
+    sql,
+    [BookName, Author, BookCover, PDFFile, TopicName || null, TopicID || null, CreatedByID, CreatedByUsername],
     (err, result) => {
       if (err) return res.status(500).send(err);
       res.json({ message: 'Book created', id: result.insertId });
@@ -72,18 +85,23 @@ exports.createBook = (req, res) => {
   );
 };
 
+
 // UPDATE book (with optional blobs)
+
 exports.updateBook = (req, res) => {
   const { id } = req.params;
   const fields = [];
   const values = [];
-  // Only update fields provided
-  ['BookName', 'Author'].forEach((key) => {
+
+  const updatableFields = ['BookName', 'Author', 'TopicName', 'TopicID', 'UpdatedByID', 'UpdatedByUsername'];
+
+  updatableFields.forEach((key) => {
     if (req.body[key] !== undefined) {
       fields.push(`${key} = ?`);
       values.push(req.body[key]);
     }
   });
+
   if (req.files && req.files['BookCover']) {
     fields.push('BookCover = ?');
     values.push(req.files['BookCover'][0].buffer);
@@ -92,10 +110,16 @@ exports.updateBook = (req, res) => {
     fields.push('PDFFile = ?');
     values.push(req.files['PDFFile'][0].buffer);
   }
+  
   if (!fields.length) {
     return res.status(400).json({ error: 'No fields to update' });
   }
+
+  // Optionally update the UpdatedAt timestamp if desired
+  fields.push('UpdatedAt = NOW()');
+
   values.push(id);
+
   const sql = `UPDATE Books SET ${fields.join(', ')} WHERE BookID = ?`;
   db.query(sql, values, (err, result) => {
     if (err) return res.status(500).send(err);
@@ -103,6 +127,8 @@ exports.updateBook = (req, res) => {
     res.json({ message: 'Book updated' });
   });
 };
+
+
 
 // DELETE book
 exports.deleteBook = (req, res) => {
