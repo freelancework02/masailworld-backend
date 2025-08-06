@@ -8,9 +8,14 @@ const multer = require('multer');
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
+// GET /api/articles/paged?page=1&limit=10
+router.get('/paged', articleController.getArticlesByPage);
+
 router.get('/', articleController.getAllArticles);
-router.get('/:id', articleController.getArticleById);
+
 router.get('/image/:id', articleController.getArticleImage);
+
+router.get('/:id', articleController.getArticleById);
 
 // Create article (with optional image upload in memory)
 router.post('/', upload.single('FeaturedImage'), articleController.createArticle);
@@ -20,5 +25,6 @@ router.patch('/:id', upload.single('FeaturedImage'), articleController.updateArt
 
 // Hard delete
 router.delete('/:id', articleController.deleteArticle);
+
 
 module.exports = router;

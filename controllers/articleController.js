@@ -14,6 +14,8 @@ exports.getAllArticles = (req, res) => {
   );
 };
 
+
+
 // Fetch SINGLE article by ID (excluding the image buffer)
 exports.getArticleById = (req, res) => {
   const { id } = req.params;
@@ -30,6 +32,7 @@ exports.getArticleById = (req, res) => {
     }
   );
 };
+
 
 // Fetch image buffer by article ID
 exports.getArticleImage = (req, res) => {
@@ -192,6 +195,29 @@ exports.deleteArticle = (req, res) => {
       if (err) return res.status(500).send(err);
       if (result.affectedRows === 0) return res.status(404).json({ error: 'Article not found' });
       res.json({ message: 'Article deleted' });
+    }
+  );
+};
+
+
+// Fetch articles with pagination (limit & offset, excluding image buffer)
+exports.getArticlesByPage = (req, res) => {
+  // Default to page 1 and 10 articles per page if not provided
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 10;
+  const offset = (page - 1) * limit;
+
+  db.query(
+    `SELECT ArticleID, Title, Slug, Tags, Description, Writer, ArticleDescription,
+            InsertedDate, TopicName, TopicID, CreatedByID, CreatedByUsername,
+            UpdatedByID, UpdatedByUsername, UpdatedAt
+     FROM Article
+     ORDER BY InsertedDate DESC
+     LIMIT ? OFFSET ?`,
+    [limit, offset],
+    (err, results) => {
+      if (err) return res.status(500).send(err);
+      res.json(results);
     }
   );
 };
