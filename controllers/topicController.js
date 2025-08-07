@@ -67,3 +67,23 @@ exports.getTopicById = (req, res) => {
     }
   );
 };
+
+
+// Get Topic by Limit and offset 
+exports.getTopicsPaged = (req, res) => {
+  // Parse and validate limit and offset from query params, provide defaults
+  let limit = parseInt(req.query.limit, 10);
+  let offset = parseInt(req.query.offset, 10);
+
+  if (isNaN(limit) || limit <= 0) limit = 10; // default limit
+  if (isNaN(offset) || offset < 0) offset = 0; // default offset
+
+  db.query(
+    'SELECT * FROM Topic ORDER BY TopicID ASC LIMIT ? OFFSET ?',
+    [limit, offset],
+    (err, results) => {
+      if (err) return res.status(500).send(err);
+      res.json(results);
+    }
+  );
+};
