@@ -24,7 +24,7 @@ router.post('/', upload.single('FeaturedImage'), articleController.createArticle
 router.patch('/:id', upload.single('FeaturedImage'), articleController.updateArticle);
 
 // Hard delete
-router.delete('/:id', articleController.deleteArticle);
+router.delete('/:id', articleController.deleteArticle); 
 
-
+ 
 module.exports = router;
