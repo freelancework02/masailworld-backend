@@ -5,7 +5,7 @@ exports.getAllArticles = (req, res) => {
   db.query(
     `SELECT ArticleID, Title, Slug, Tags, Description, Writer, ArticleDescription,
             InsertedDate, TopicName, TopicID, CreatedByID, CreatedByUsername,
-            UpdatedByID, UpdatedByUsername, UpdatedAt
+            UpdatedByID, UpdatedByUsername, UpdatedAt, VIEW, likes
      FROM Article`,
     (err, results) => {
       if (err) return res.status(500).send(err);
@@ -22,7 +22,7 @@ exports.getArticleById = (req, res) => {
   db.query(
     `SELECT ArticleID, Title, Slug, Tags, Description, Writer, ArticleDescription,
             TopicName, TopicID, CreatedByID, CreatedByUsername,
-            UpdatedByID, UpdatedByUsername, UpdatedAt
+            UpdatedByID, UpdatedByUsername, UpdatedAt, VIEW, likes
     FROM Article WHERE ArticleID = ?`,
     [id],
     (err, results) => {
@@ -210,7 +210,7 @@ exports.getArticlesByPage = (req, res) => {
   db.query(
     `SELECT ArticleID, Title, Slug, Tags, Description, Writer, ArticleDescription,
             InsertedDate, TopicName, TopicID, CreatedByID, CreatedByUsername,
-            UpdatedByID, UpdatedByUsername, UpdatedAt
+            UpdatedByID, UpdatedByUsername, UpdatedAt, VIEW, likes
      FROM Article
      ORDER BY InsertedDate DESC
      LIMIT ? OFFSET ?`,
