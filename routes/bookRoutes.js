@@ -7,6 +7,9 @@ const multer = require('multer');
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
+// GET books with pagination (limit + optional offset)
+router.get('/paginated', bookController.getBooksPaginated);
+
 // GET all books (no blobs)
 router.get('/', bookController.getAllBooks);
 

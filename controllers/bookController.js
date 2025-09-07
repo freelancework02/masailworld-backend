@@ -143,3 +143,36 @@ exports.deleteBook = (req, res) => {
     }
   );
 };
+
+
+
+
+// NEW: GET books with limit and optional offset
+exports.getBooksPaginated = (req, res) => {
+  let { limit, offset } = req.query;
+
+  limit = parseInt(limit, 10);
+  offset = offset !== undefined ? parseInt(offset, 10) : null;
+
+  if (isNaN(limit) || limit <= 0) {
+    return res.status(400).json({ error: 'Valid limit is required' });
+  }
+
+  let sql = `
+    SELECT BookID, BookName, Author, InsertedDate, TopicName, TopicID
+    FROM Books
+    ORDER BY InsertedDate DESC
+    LIMIT ?
+  `;
+  const values = [limit];
+
+  if (offset !== null && !isNaN(offset) && offset >= 0) {
+    sql += ' OFFSET ?';
+    values.push(offset);
+  }
+
+  db.query(sql, values, (err, results) => {
+    if (err) return res.status(500).send(err);
+    res.json(results);
+  });
+};
