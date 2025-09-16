@@ -18,9 +18,12 @@ exports.createUser = async (req, res) => {
       VALUES (?, ?, ?, ?, 1)
     `;
 
-    const [result] = await db.query(sql, [Name, Email, Password, ConfirmPassword]);
+    const result = await db.query(sql, [Name, Email, Password, ConfirmPassword]);
 
-    res.status(201).json({ message: "User created successfully", id: result.insertId });
+    res.status(201).json({
+      message: "User created successfully",
+      id: result.insertId,
+    });
   } catch (error) {
     console.error(error);
 
@@ -32,11 +35,11 @@ exports.createUser = async (req, res) => {
   }
 };
 
-// Get all users (only Name)
+// Get all users
 exports.getAllUsers = async (req, res) => {
   try {
-    const sql = "SELECT id, Name FROM User WHERE isActive = 1";
-    const [rows] = await db.query(sql);
+    const sql = "SELECT id, Name, Email FROM User WHERE isActive = 1";
+    const rows = await db.query(sql);
 
     res.json(rows);
   } catch (error) {
@@ -45,13 +48,13 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
-// Get user by ID (only Name)
+// Get user by ID
 exports.getUserById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const sql = "SELECT id, Name FROM User WHERE id = ? AND isActive = 1";
-    const [rows] = await db.query(sql, [id]);
+    const sql = "SELECT id, Name, Email FROM User WHERE id = ? AND isActive = 1";
+    const rows = await db.query(sql, [id]);
 
     if (rows.length === 0) {
       return res.status(404).json({ error: "User not found" });
@@ -61,5 +64,24 @@ exports.getUserById = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to fetch user" });
+  }
+};
+
+// Delete user (soft delete by setting isActive = 0)
+exports.deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const sql = "UPDATE User SET isActive = 0 WHERE id = ?";
+    const result = await db.query(sql, [id]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "User not found or already deleted" });
+    }
+
+    res.json({ message: "User deleted successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to delete user" });
   }
 };

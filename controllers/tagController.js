@@ -11,7 +11,7 @@ exports.createTag = async (req, res) => {
       VALUES (?, ?, ?, ?, ?, 1)
     `;
 
-    const [result] = await db.query(sql, [
+    const result = await db.query(sql, [
       Name,
       slug,
       iconClass || null,
@@ -19,7 +19,9 @@ exports.createTag = async (req, res) => {
       AboutTags || null,
     ]);
 
-    res.status(201).json({ message: "Tag created successfully", id: result.insertId });
+    res
+      .status(201)
+      .json({ message: "Tag created successfully", id: result.insertId });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to create tag" });
@@ -37,7 +39,7 @@ exports.getAllTags = async (req, res) => {
       FROM Tags WHERE isActive = 1
       LIMIT ? OFFSET ?
     `;
-    const [rows] = await db.query(sql, [limit, offset]);
+    const rows = await db.query(sql, [limit, offset]);
 
     res.json(rows);
   } catch (error) {
@@ -55,9 +57,10 @@ exports.getTagById = async (req, res) => {
       SELECT id, Name, slug, iconClass, AboutTags, isActive
       FROM Tags WHERE id = ? AND isActive = 1
     `;
-    const [rows] = await db.query(sql, [id]);
+    const rows = await db.query(sql, [id]);
 
-    if (rows.length === 0) return res.status(404).json({ error: "Tag not found" });
+    if (rows.length === 0)
+      return res.status(404).json({ error: "Tag not found" });
 
     res.json(rows[0]);
   } catch (error) {
@@ -72,7 +75,7 @@ exports.getTagCoverById = async (req, res) => {
     const { id } = req.params;
 
     const sql = "SELECT tagsCover FROM Tags WHERE id = ? AND isActive = 1";
-    const [rows] = await db.query(sql, [id]);
+    const rows = await db.query(sql, [id]);
 
     if (rows.length === 0 || !rows[0].tagsCover) {
       return res.status(404).json({ error: "Cover image not found" });
