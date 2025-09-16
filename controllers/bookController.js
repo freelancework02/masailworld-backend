@@ -1,178 +1,173 @@
-const db = require('../db');
+const db = require("../config/db");
 
-// GET all books (excluding BookCover/PDFFile binary data)
-exports.getAllBooks = (req, res) => {
-  db.query(
-    'SELECT BookID, BookName, Author, InsertedDate, TopicName, TopicID FROM Books',
-    (err, results) => {
-      if (err) return res.status(500).send(err);
-      res.json(results);
-    }
-  );
-};
+// Create book (with cover + pdf)
+exports.createBook = async (req, res) => {
+  try {
+    const { BookName, BookWriter, BookDescription } = req.body;
+    const coverFile = req.files["BookCoverImg"] ? req.files["BookCoverImg"][0].buffer : null;
+    const pdfFile = req.files["BookPDF"] ? req.files["BookPDF"][0].buffer : null;
 
-// GET single book by ID (excluding BookCover/PDFFile binary data)
-exports.getBookById = (req, res) => {
-  const { id } = req.params;
-  db.query(
-    'SELECT BookID, BookName, Author, TopicName, TopicID FROM Books WHERE BookID = ?',
-    [id],
-    (err, results) => {
-      if (err) return res.status(500).send(err);
-      if (!results.length) return res.status(404).json({ error: 'Book not found' });
-      res.json(results[0]);
-    }
-  );
-};
+    const sql = `
+      INSERT INTO Books (BookName, BookWriter, BookDescription, BookCoverImg, BookPDF, isActive)
+      VALUES (?, ?, ?, ?, ?, 1)
+    `;
 
-// GET BookCover image blob by ID
-exports.getBookCover = (req, res) => {
-  const { id } = req.params;
-  db.query(
-    'SELECT BookCover FROM Books WHERE BookID = ?',
-    [id],
-    (err, results) => {
-      if (err) return res.status(500).send(err);
-      if (!results.length || !results[0].BookCover)
-        return res.status(404).json({ error: 'Book cover not found' });
-      res.set('Content-Type', 'image/jpeg'); // or detect mimetype
-      res.send(results[0].BookCover);
-    }
-  );
-};
+    const result = await db.query(sql, [
+      BookName,
+      BookWriter || null,
+      BookDescription || null,
+      coverFile,
+      pdfFile,
+    ]);
 
-// GET PDF file blob by ID
-exports.getBookPdf = (req, res) => {
-  const { id } = req.params;
-  db.query(
-    'SELECT PDFFile FROM Books WHERE BookID = ?',
-    [id],
-    (err, results) => {
-      if (err) return res.status(500).send(err);
-      if (!results.length || !results[0].PDFFile)
-        return res.status(404).json({ error: 'PDF file not found' });
-      res.set('Content-Type', 'application/pdf');
-      res.send(results[0].PDFFile);
-    }
-  );
-};
-
-// CREATE book (store cover and PDF as blobs)
-
-exports.createBook = (req, res) => {
-  const { BookName, Author, TopicID, TopicName, CreatedByID, CreatedByUsername } = req.body;
-
-  const BookCover = req.files && req.files['BookCover'] ? req.files['BookCover'][0].buffer : null;
-  const PDFFile = req.files && req.files['PDFFile'] ? req.files['PDFFile'][0].buffer : null;
-
-  if (!CreatedByID || !CreatedByUsername) {
-    return res.status(400).json({ error: 'CreatedByID and CreatedByUsername are required.' });
+    res.status(201).json({ message: "Book created successfully", id: result.insertId });
+  } catch (error) {
+    console.error("❌ Error creating book:", error);
+    res.status(500).json({ error: "Failed to create book" });
   }
-
-  const sql = `
-    INSERT INTO Books
-      (BookName, Author, BookCover, PDFFile, TopicName, TopicID, CreatedByID, CreatedByUsername)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `;
-
-  db.query(
-    sql,
-    [BookName, Author, BookCover, PDFFile, TopicName || null, TopicID || null, CreatedByID, CreatedByUsername],
-    (err, result) => {
-      if (err) return res.status(500).send(err);
-      res.json({ message: 'Book created', id: result.insertId });
-    }
-  );
 };
 
+// Get all books (without heavy BLOBs)
+exports.getAllBooks = async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = parseInt(req.query.offset) || 0;
 
-// UPDATE book (with optional blobs)
+    const sql = `
+      SELECT id, BookName, BookWriter, BookDescription, isActive
+      FROM Books WHERE isActive = 1
+      LIMIT ? OFFSET ?
+    `;
 
-exports.updateBook = (req, res) => {
-  const { id } = req.params;
-  const fields = [];
-  const values = [];
+    const rows = await db.query(sql, [limit, offset]);
 
-  const updatableFields = ['BookName', 'Author', 'TopicName', 'TopicID', 'UpdatedByID', 'UpdatedByUsername'];
-
-  updatableFields.forEach((key) => {
-    if (req.body[key] !== undefined) {
-      fields.push(`${key} = ?`);
-      values.push(req.body[key]);
-    }
-  });
-
-  if (req.files && req.files['BookCover']) {
-    fields.push('BookCover = ?');
-    values.push(req.files['BookCover'][0].buffer);
+    res.json(rows);
+  } catch (error) {
+    console.error("❌ Error fetching books:", error);
+    res.status(500).json({ error: "Failed to fetch books" });
   }
-  if (req.files && req.files['PDFFile']) {
-    fields.push('PDFFile = ?');
-    values.push(req.files['PDFFile'][0].buffer);
-  }
-  
-  if (!fields.length) {
-    return res.status(400).json({ error: 'No fields to update' });
-  }
-
-  // Optionally update the UpdatedAt timestamp if desired
-  fields.push('UpdatedAt = NOW()');
-
-  values.push(id);
-
-  const sql = `UPDATE Books SET ${fields.join(', ')} WHERE BookID = ?`;
-  db.query(sql, values, (err, result) => {
-    if (err) return res.status(500).send(err);
-    if (result.affectedRows === 0) return res.status(404).json({ error: 'Book not found' });
-    res.json({ message: 'Book updated' });
-  });
 };
 
+// Get book by ID (without blobs)
+exports.getBookById = async (req, res) => {
+  try {
+    const { id } = req.params;
 
+    const sql = `
+      SELECT id, BookName, BookWriter, BookDescription, isActive
+      FROM Books WHERE id = ? AND isActive = 1
+    `;
+    const rows = await db.query(sql, [id]);
 
-// DELETE book
-exports.deleteBook = (req, res) => {
-  const { id } = req.params;
-  db.query(
-    'DELETE FROM Books WHERE BookID = ?',
-    [id],
-    (err, result) => {
-      if (err) return res.status(500).send(err);
-      if (result.affectedRows === 0) return res.status(404).json({ error: 'Book not found' });
-      res.json({ message: 'Book deleted' });
-    }
-  );
+    if (rows.length === 0) return res.status(404).json({ error: "Book not found" });
+
+    res.json(rows[0]);
+  } catch (error) {
+    console.error("❌ Error fetching book:", error);
+    res.status(500).json({ error: "Failed to fetch book" });
+  }
 };
 
+// Get book cover by ID
+exports.getBookCoverById = async (req, res) => {
+  try {
+    const { id } = req.params;
 
+    const sql = "SELECT BookCoverImg FROM Books WHERE id = ? AND isActive = 1";
+    const rows = await db.query(sql, [id]);
 
+    if (rows.length === 0 || !rows[0].BookCoverImg) {
+      return res.status(404).json({ error: "Book cover not found" });
+    }
 
-// NEW: GET books with limit and optional offset
-exports.getBooksPaginated = (req, res) => {
-  let { limit, offset } = req.query;
-
-  limit = parseInt(limit, 10);
-  offset = offset !== undefined ? parseInt(offset, 10) : null;
-
-  if (isNaN(limit) || limit <= 0) {
-    return res.status(400).json({ error: 'Valid limit is required' });
+    res.set("Content-Type", "image/jpeg");
+    res.send(rows[0].BookCoverImg);
+  } catch (error) {
+    console.error("❌ Error fetching book cover:", error);
+    res.status(500).json({ error: "Failed to fetch book cover" });
   }
+};
 
-  let sql = `
-    SELECT BookID, BookName, Author, InsertedDate, TopicName, TopicID
-    FROM Books
-    ORDER BY InsertedDate DESC
-    LIMIT ?
-  `;
-  const values = [limit];
+// Get book PDF by ID
+exports.getBookPdfById = async (req, res) => {
+  try {
+    const { id } = req.params;
 
-  if (offset !== null && !isNaN(offset) && offset >= 0) {
-    sql += ' OFFSET ?';
-    values.push(offset);
+    const sql = "SELECT BookPDF FROM Books WHERE id = ? AND isActive = 1";
+    const rows = await db.query(sql, [id]);
+
+    if (rows.length === 0 || !rows[0].BookPDF) {
+      return res.status(404).json({ error: "Book PDF not found" });
+    }
+
+    res.set("Content-Type", "application/pdf");
+    res.send(rows[0].BookPDF);
+  } catch (error) {
+    console.error("❌ Error fetching book PDF:", error);
+    res.status(500).json({ error: "Failed to fetch book PDF" });
   }
+};
 
-  db.query(sql, values, (err, results) => {
-    if (err) return res.status(500).send(err);
-    res.json(results);
-  });
+// Update book (with optional new cover/pdf)
+exports.updateBook = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { BookName, BookWriter, BookDescription } = req.body;
+    const coverFile = req.files["BookCoverImg"] ? req.files["BookCoverImg"][0].buffer : null;
+    const pdfFile = req.files["BookPDF"] ? req.files["BookPDF"][0].buffer : null;
+
+    let sql, params;
+
+    if (coverFile && pdfFile) {
+      sql = `
+        UPDATE Books
+        SET BookName = ?, BookWriter = ?, BookDescription = ?, BookCoverImg = ?, BookPDF = ?
+        WHERE id = ? AND isActive = 1
+      `;
+      params = [BookName, BookWriter, BookDescription, coverFile, pdfFile, id];
+    } else if (coverFile) {
+      sql = `
+        UPDATE Books
+        SET BookName = ?, BookWriter = ?, BookDescription = ?, BookCoverImg = ?
+        WHERE id = ? AND isActive = 1
+      `;
+      params = [BookName, BookWriter, BookDescription, coverFile, id];
+    } else if (pdfFile) {
+      sql = `
+        UPDATE Books
+        SET BookName = ?, BookWriter = ?, BookDescription = ?, BookPDF = ?
+        WHERE id = ? AND isActive = 1
+      `;
+      params = [BookName, BookWriter, BookDescription, pdfFile, id];
+    } else {
+      sql = `
+        UPDATE Books
+        SET BookName = ?, BookWriter = ?, BookDescription = ?
+        WHERE id = ? AND isActive = 1
+      `;
+      params = [BookName, BookWriter, BookDescription, id];
+    }
+
+    await db.query(sql, params);
+
+    res.json({ message: "Book updated successfully" });
+  } catch (error) {
+    console.error("❌ Error updating book:", error);
+    res.status(500).json({ error: "Failed to update book" });
+  }
+};
+
+// Soft delete
+exports.deleteBook = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const sql = "UPDATE Books SET isActive = 0 WHERE id = ?";
+    await db.query(sql, [id]);
+
+    res.json({ message: "Book soft deleted successfully" });
+  } catch (error) {
+    console.error("❌ Error deleting book:", error);
+    res.status(500).json({ error: "Failed to delete book" });
+  }
 };

@@ -1,48 +1,39 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const bookController = require('../controllers/bookController');
-const multer = require('multer');
+const multer = require("multer");
+const bookController = require("../controllers/bookController");
 
-// Multer config to store files in memory (buffer)
+// Multer setup (memory storage for BLOBs)
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// GET books with pagination (limit + optional offset)
-router.get('/paginated', bookController.getBooksPaginated);
-
-// GET all books (no blobs)
-router.get('/', bookController.getAllBooks);
-
-// GET one book (no blobs)
-router.get('/:id', bookController.getBookById);
-
-// GET BookCover by BookID (returns image blob)
-router.get('/cover/:id', bookController.getBookCover);
-
-// GET PDFFile by BookID (returns PDF blob)
-router.get('/pdf/:id', bookController.getBookPdf);
-
-// CREATE: Accept BookCover and PDFFile as blobs in memory
+// Create book (with cover + pdf)
 router.post(
-  '/',
+  "/",
   upload.fields([
-    { name: 'BookCover', maxCount: 1 },
-    { name: 'PDFFile', maxCount: 1 }
+    { name: "BookCoverImg", maxCount: 1 },
+    { name: "BookPDF", maxCount: 1 },
   ]),
   bookController.createBook
 );
 
-// UPDATE: Accept BookCover/PDFFile replacement (partial or full)
-router.patch(
-  '/:id',
+// Read
+router.get("/", bookController.getAllBooks); // ?limit=10&offset=0
+router.get("/:id", bookController.getBookById);
+router.get("/:id/cover", bookController.getBookCoverById);
+router.get("/:id/pdf", bookController.getBookPdfById);
+
+// Update (with optional files)
+router.put(
+  "/:id",
   upload.fields([
-    { name: 'BookCover', maxCount: 1 },
-    { name: 'PDFFile', maxCount: 1 }
+    { name: "BookCoverImg", maxCount: 1 },
+    { name: "BookPDF", maxCount: 1 },
   ]),
   bookController.updateBook
 );
 
-// DELETE
-router.delete('/:id', bookController.deleteBook);
+// Soft delete
+router.delete("/:id", bookController.deleteBook);
 
 module.exports = router;

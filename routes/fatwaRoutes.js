@@ -1,23 +1,19 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const fatwaController = require('../controllers/fatwaController');
+const fatwaController = require("../controllers/fatwaController");
 
-// Create new fatwa
-router.post('/', fatwaController.createFatwa);
+// Insert
+router.post("/website", fatwaController.addQuestionFromWebsite); // user submits question
+router.post("/dashboard", fatwaController.addFatwaFromDashboard); // admin creates directly
 
-// Get all fatwas
-router.get('/', fatwaController.getAllFatwas);
+// Read
+router.get("/", fatwaController.getAllFatwas); // with ?limit=10&offset=0
+router.get("/:id", fatwaController.getFatwaById);
 
-// Get fatwas with pagination (limit & offset)
-router.get('/paginated/list', fatwaController.getFatwasWithPagination);
+// Update
+router.put("/:id", fatwaController.updateFatwa);
 
-// Get single fatwa by ID
-router.get('/:id', fatwaController.getFatwaById);
-
-// Update fatwa by ID
-router.put('/:id', fatwaController.updateFatwa);
-
-// Delete fatwa by ID
-router.delete('/:id', fatwaController.deleteFatwa);
+// Delete (soft delete)
+router.delete("/:id", fatwaController.deleteFatwa);
 
 module.exports = router;

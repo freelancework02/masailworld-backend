@@ -1,30 +1,24 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const articleController = require('../controllers/articleController');
+const multer = require("multer");
+const articleController = require("../controllers/articleController");
 
-const multer = require('multer');
-
-// Store image in memory (no files on disk)
+// Multer setup: store file in memory (buffer)
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// GET /api/articles/paged?page=1&limit=10
-router.get('/paged', articleController.getArticlesByPage);
+// Create article with image
+router.post("/", upload.single("coverImage"), articleController.createArticle);
 
-router.get('/', articleController.getAllArticles);
+// Read
+router.get("/", articleController.getAllArticles); // ?limit=10&offset=0
+router.get("/:id", articleController.getArticleById);
+router.get("/:id/image", articleController.getArticleImage); // get only cover image
 
-router.get('/image/:id', articleController.getArticleImage);
+// Update (with optional image)
+router.put("/:id", upload.single("coverImage"), articleController.updateArticle);
 
-router.get('/:id', articleController.getArticleById);
+// Delete (soft delete)
+router.delete("/:id", articleController.deleteArticle);
 
-// Create article (with optional image upload in memory)
-router.post('/', upload.single('FeaturedImage'), articleController.createArticle);
-
-// Update article (PATCH is more RESTful for partial update)
-router.patch('/:id', upload.single('FeaturedImage'), articleController.updateArticle);
-
-// Hard delete
-router.delete('/:id', articleController.deleteArticle); 
-
- 
 module.exports = router;

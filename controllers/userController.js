@@ -1,67 +1,65 @@
-const pool = require('../db'); // Adjust path if needed
+const db = require("../config/db");
 
-// 1. Create a new user
+// Insert user
 exports.createUser = async (req, res) => {
-  const { username, email, password, CreatedByID, CreatedByUsername } = req.body;
-
-  if (!username || !email || !password)
-    return res.status(400).json({ error: 'Username, email, and password are required.' });
-
   try {
-    const rows = await pool.query('SELECT * FROM User WHERE Username = ? OR Email = ?', [username, email]);
-    
-    if (rows.length > 0) {
-      return res.status(409).json({ error: 'Username or Email already exists.' });
+    const { Name, Email, Password, ConfirmPassword } = req.body;
+
+    if (!Name || !Email || !Password || !ConfirmPassword) {
+      return res.status(400).json({ error: "All fields are required" });
     }
 
-    // Store hashed password if preferred
-    // const hashedPassword = await bcrypt.hash(password, 10);
+    if (Password !== ConfirmPassword) {
+      return res.status(400).json({ error: "Passwords do not match" });
+    }
 
-    // Insert user with creator info
-    const result = await pool.query(
-      `INSERT INTO User 
-        (Username, Email, Password, CreatedByID, CreatedByUsername) 
-        VALUES (?, ?, ?, ?, ?)`,
-      [username, email, password /* or hashedPassword */, CreatedByID || null, CreatedByUsername || null]
-    );
+    const sql = `
+      INSERT INTO User (Name, Email, Password, ConfirmPassword, isActive)
+      VALUES (?, ?, ?, ?, 1)
+    `;
 
-    res.status(201).json({ success: true, userId: result.insertId, username });
+    const [result] = await db.query(sql, [Name, Email, Password, ConfirmPassword]);
 
+    res.status(201).json({ message: "User created successfully", id: result.insertId });
   } catch (error) {
-    console.error('Create user error:', error);
-    res.status(500).json({ error: 'Server error creating user.' });
+    console.error(error);
+
+    if (error.code === "ER_DUP_ENTRY") {
+      return res.status(400).json({ error: "Email already exists" });
+    }
+
+    res.status(500).json({ error: "Failed to create user" });
   }
 };
 
-
-
-  
-
-// 2. Get all users
+// Get all users (only Name)
 exports.getAllUsers = async (req, res) => {
-    try {
-        const [rows] = await pool.query('SELECT * FROM User');
-        res.json(rows);
-    } catch (error) {
-        console.error('Get users error:', error);
-        res.status(500).json({ error: 'Database error while retrieving users.' });
-    }
+  try {
+    const sql = "SELECT id, Name FROM User WHERE isActive = 1";
+    const [rows] = await db.query(sql);
+
+    res.json(rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to fetch users" });
+  }
 };
 
-// 3. Get user by ID
+// Get user by ID (only Name)
 exports.getUserById = async (req, res) => {
+  try {
     const { id } = req.params;
 
-    try {
-        const [rows] = await pool.query('SELECT * FROM User WHERE UserID = ?', [id]);
+    const sql = "SELECT id, Name FROM User WHERE id = ? AND isActive = 1";
+    const [rows] = await db.query(sql, [id]);
 
-        if (rows.length === 0) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        res.json(rows[0]);
-    } catch (error) {
-        console.error('Get user by ID error:', error);
-        res.status(500).json({ error: 'Database error while retrieving user.' });
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
     }
+
+    res.json(rows[0]);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to fetch user" });
+  }
 };

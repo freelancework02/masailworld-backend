@@ -4,7 +4,17 @@ const pool = require('../db');
 exports.getTotals = async (req, res) => {
   try {
     // Define queries to get counts from each table
-    const tables = ['Article', 'Books', 'Fatwa', 'Topic', 'User', 'Writers', "Questions"];
+    const tables = [
+      'Article',
+      'Books',
+      'Fatwa',
+      'Topic',
+      'User',
+      'Writers',
+      'Questions',
+      'NewAleemKiEntry',
+      'Tags'
+    ];
     
     // Create an array of promises for count queries
     const countPromises = tables.map(table =>
@@ -17,7 +27,6 @@ exports.getTotals = async (req, res) => {
     // Extract counts from results
     const counts = {};
     tables.forEach((table, index) => {
-      // For promisified mysql, result is rows array
       const rows = results[index];
       counts[table.toLowerCase()] = rows[0].count || 0;
     });
