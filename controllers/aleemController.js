@@ -62,7 +62,7 @@ exports.getAleemById = async (req, res) => {
     `;
     const rows = await db.query(sql, [id]);
 
-    if (!rows || rows.length === 0) {
+    if (!rows.length) {
       return res.status(404).json({ error: "Entry not found" });
     }
 
@@ -82,7 +82,7 @@ exports.getProfileById = async (req, res) => {
       "SELECT ProfileImg FROM NewAleemKiEntry WHERE id = ? AND isActive = 1";
     const rows = await db.query(sql, [id]);
 
-    if (!rows || rows.length === 0 || !rows[0].ProfileImg) {
+    if (!rows.length || !rows[0].ProfileImg) {
       return res.status(404).json({ error: "Profile image not found" });
     }
 
@@ -109,14 +109,14 @@ exports.updateAleem = async (req, res) => {
         SET Ulmaekaram = ?, Name = ?, Position = ?, About = ?, ProfileImg = ?
         WHERE id = ? AND isActive = 1
       `;
-      params = [Ulmaekaram, Name, Position, About, profileFile, id];
+      params = [Ulmaekaram || null, Name, Position || null, About || null, profileFile, id];
     } else {
       sql = `
         UPDATE NewAleemKiEntry
         SET Ulmaekaram = ?, Name = ?, Position = ?, About = ?
         WHERE id = ? AND isActive = 1
       `;
-      params = [Ulmaekaram, Name, Position, About, id];
+      params = [Ulmaekaram || null, Name, Position || null, About || null, id];
     }
 
     await db.query(sql, params);
