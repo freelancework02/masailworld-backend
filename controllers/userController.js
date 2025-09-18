@@ -67,7 +67,45 @@ exports.getUserById = async (req, res) => {
   }
 };
 
-// Delete user (soft delete by setting isActive = 0)
+// ✅ Update user
+exports.updateUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { Name, Email, Password, ConfirmPassword } = req.body;
+
+    if (!Name || !Email) {
+      return res.status(400).json({ error: "Name and Email are required" });
+    }
+
+    // If password fields are provided, check match
+    if ((Password || ConfirmPassword) && Password !== ConfirmPassword) {
+      return res.status(400).json({ error: "Passwords do not match" });
+    }
+
+    let sql, params;
+
+    if (Password && ConfirmPassword) {
+      sql = `UPDATE User SET Name = ?, Email = ?, Password = ?, ConfirmPassword = ? WHERE id = ? AND isActive = 1`;
+      params = [Name, Email, Password, ConfirmPassword, id];
+    } else {
+      sql = `UPDATE User SET Name = ?, Email = ? WHERE id = ? AND isActive = 1`;
+      params = [Name, Email, id];
+    }
+
+    const result = await db.query(sql, params);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "User not found or inactive" });
+    }
+
+    res.json({ message: "User updated successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to update user" });
+  }
+};
+
+// Delete user (soft delete)
 exports.deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
