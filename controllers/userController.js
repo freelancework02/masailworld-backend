@@ -77,7 +77,6 @@ exports.updateUser = async (req, res) => {
       return res.status(400).json({ error: "Name and Email are required" });
     }
 
-    // If password fields are provided, check match
     if ((Password || ConfirmPassword) && Password !== ConfirmPassword) {
       return res.status(400).json({ error: "Passwords do not match" });
     }
@@ -121,5 +120,46 @@ exports.deleteUser = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to delete user" });
+  }
+};
+
+// ✅ Login user
+exports.loginUser = async (req, res) => {
+  try {
+    const { identifier, Password } = req.body; // identifier = Name OR Email
+
+    if (!identifier || !Password) {
+      return res.status(400).json({ error: "Email/Name and Password are required" });
+    }
+
+    const sql = `
+      SELECT id, Name, Email, Password 
+      FROM User 
+      WHERE (Email = ? OR Name = ?) AND isActive = 1
+      LIMIT 1
+    `;
+    const rows = await db.query(sql, [identifier, identifier]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const user = rows[0];
+
+    if (user.Password !== Password) {
+      return res.status(401).json({ error: "Invalid password" });
+    }
+
+    res.json({
+      message: "Login successful",
+      user: {
+        id: user.id,
+        Name: user.Name,
+        Email: user.Email,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Login failed" });
   }
 };
