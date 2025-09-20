@@ -35,7 +35,7 @@ exports.getAllArticles = async (req, res) => {
     const offset = parseInt(req.query.offset) || 0;
 
     const sql = `
-      SELECT id, Title, slug, tags, seo, writer, ArticleText, isActive
+      SELECT id, Title, slug, tags, seo, writer, ArticleText, isActive, Likes, Views
       FROM Article WHERE isActive = 1
       LIMIT ? OFFSET ?
     `;
@@ -54,7 +54,7 @@ exports.getArticleById = async (req, res) => {
     const { id } = req.params;
 
     const sql = `
-      SELECT id, Title, slug, tags, seo, writer, ArticleText, isActive
+      SELECT id, Title, slug, tags, seo, writer, ArticleText, isActive,Likes, Views
       FROM Article WHERE id = ? AND isActive = 1
     `;
     const rows = await db.query(sql, [id]);
