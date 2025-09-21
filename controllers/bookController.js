@@ -100,13 +100,21 @@ exports.getBookPdfById = async (req, res) => {
       return res.status(404).json({ error: "Book PDF not found" });
     }
 
-    res.set("Content-Type", "application/pdf");
-    res.send(rows[0].BookPDF);
+    const pdfBuffer = rows[0].BookPDF;
+
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": "inline; filename=book.pdf",
+      "Content-Length": pdfBuffer.length
+    });
+
+    res.send(pdfBuffer);
   } catch (error) {
     console.error("❌ Error fetching book PDF:", error);
     res.status(500).json({ error: "Failed to fetch book PDF" });
   }
 };
+
 
 // Update book (with optional new cover/pdf)
 exports.updateBook = async (req, res) => {
@@ -171,3 +179,4 @@ exports.deleteBook = async (req, res) => {
     res.status(500).json({ error: "Failed to delete book" });
   }
 };
+
