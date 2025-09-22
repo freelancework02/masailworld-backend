@@ -62,7 +62,7 @@ exports.getAllFatwas = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const offset = parseInt(req.query.offset) || 0;
 
-    const sql = "SELECT * FROM fatawa WHERE isActive = 1 ORDER BY created_at DESC LIMIT ? OFFSET ?";
+    const sql = " SELECT * FROM fatawa  WHERE isActive = 1 AND status = 'answered' ORDER BY created_at DESC LIMIT ? OFFSET ?";
     const rows = await db.query(sql, [limit, offset]);
 
     res.json(rows);
