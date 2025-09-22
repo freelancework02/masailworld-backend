@@ -387,11 +387,12 @@ exports.deleteFatwa = async (req, res) => {
 exports.getLatestFatwas = async (req, res) => {
   try {
     const sql = `
-      SELECT id, Title, slug, detailquestion, status, created_at, Likes, Views
-      FROM fatawa 
-      WHERE isActive = 1 
-      ORDER BY created_at DESC 
-      LIMIT 3
+     SELECT id, Title, slug, detailquestion, status, created_at, Likes, Views
+FROM fatawa
+WHERE isActive = 1 AND status = 'answered'
+ORDER BY created_at DESC
+LIMIT 3;
+
     `;
     const rows = await db.query(sql);
 
