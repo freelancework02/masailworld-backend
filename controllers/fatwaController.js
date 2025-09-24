@@ -30,16 +30,47 @@ exports.addQuestionFromWebsite = async (req, res) => {
 };
 
 // Insert: from dashboard (with answer, directly published)
+// exports.addFatwaFromDashboard = async (req, res) => {
+//   try {
+//     const { Title, slug, detailquestion, tags, tafseel, Answer, muftisahab, mozuwat } = req.body;
+
+//     const sql = `
+//       INSERT INTO fatawa (Title, slug, detailquestion, tags, tafseel, Answer, muftisahab, status, isActive)
+//       VALUES (?, ?, ?, ?, ?, ?, ?, 'answered', 1)
+//     `;
+
+//     const result = await db.query(sql, [
+//       Title,
+//       slug,
+//       detailquestion,
+//       tags || null,
+//       tafseel || null,
+//       Answer,
+//       muftisahab,
+//     ]);
+
+//     res.status(201).json({ message: "Fatwa created successfully", id: result.insertId });
+//   } catch (error) {
+//     console.error("❌ addFatwaFromDashboard error:", error);
+//     res.status(500).json({ error: "Failed to create fatwa" });
+//   }
+// };
+
+// controllers/fatwaController.js (or wherever this lives)
+
 exports.addFatwaFromDashboard = async (req, res) => {
   try {
-    const { Title, slug, detailquestion, tags, tafseel, Answer, muftisahab } = req.body;
+    // Expecting mozuwat to be passed (we store tag id or null)
+    const { Title, slug, detailquestion, tags, tafseel, Answer, muftisahab, mozuwat } = req.body;
 
     const sql = `
-      INSERT INTO fatawa (Title, slug, detailquestion, tags, tafseel, Answer, muftisahab, status, isActive)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'answered', 1)
+      INSERT INTO fatawa
+        (Title, slug, detailquestion, tags, tafseel, Answer, muftisahab, mozuwat, status, isActive)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'answered', 1)
     `;
 
-    const result = await db.query(sql, [
+    // use mozuwat || null so undefined -> null
+    const params = [
       Title,
       slug,
       detailquestion,
@@ -47,7 +78,10 @@ exports.addFatwaFromDashboard = async (req, res) => {
       tafseel || null,
       Answer,
       muftisahab,
-    ]);
+      mozuwat || null
+    ];
+
+    const result = await db.query(sql, params);
 
     res.status(201).json({ message: "Fatwa created successfully", id: result.insertId });
   } catch (error) {
@@ -55,6 +89,7 @@ exports.addFatwaFromDashboard = async (req, res) => {
     res.status(500).json({ error: "Failed to create fatwa" });
   }
 };
+
 
 // Get all (with limit/offset)
 exports.getAllFatwas = async (req, res) => {
