@@ -126,14 +126,53 @@ exports.getFatwaById = async (req, res) => {
 };
 
 // Update (answer + status update)
+// exports.updateFatwa = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const { Title, tags, tafseel, detailquestion, Answer, muftisahab, status } = req.body;
+
+//     const sql = `
+//       UPDATE fatawa 
+//       SET Title = ?, tags = ?, tafseel = ?, detailquestion = ?, Answer = ?, muftisahab = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+//       WHERE id = ? AND isActive = 1
+//     `;
+
+//     await db.query(sql, [
+//       Title || null,
+//       tags || null,
+//       tafseel || null,
+//       detailquestion || null,
+//       Answer || null,
+//       muftisahab || null,
+//       status || "answered",
+//       id,
+//     ]);
+
+//     res.json({ message: "Fatwa updated successfully" });
+//   } catch (error) {
+//     console.error("❌ updateFatwa error:", error);
+//     res.status(500).json({ error: "Failed to update fatwa" });
+//   }
+// };
+
+
+
 exports.updateFatwa = async (req, res) => {
   try {
     const { id } = req.params;
-    const { Title, tags, tafseel, detailquestion, Answer, muftisahab, status } = req.body;
+    const { Title, tags, tafseel, detailquestion, Answer, muftisahab, status, mozuwat } = req.body;
 
     const sql = `
       UPDATE fatawa 
-      SET Title = ?, tags = ?, tafseel = ?, detailquestion = ?, Answer = ?, muftisahab = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+      SET Title = ?, 
+          tags = ?, 
+          tafseel = ?, 
+          detailquestion = ?, 
+          Answer = ?, 
+          muftisahab = ?, 
+          status = ?, 
+          mozuwat = ?, 
+          updated_at = CURRENT_TIMESTAMP
       WHERE id = ? AND isActive = 1
     `;
 
@@ -145,6 +184,7 @@ exports.updateFatwa = async (req, res) => {
       Answer || null,
       muftisahab || null,
       status || "answered",
+      mozuwat || null,
       id,
     ]);
 
@@ -154,6 +194,9 @@ exports.updateFatwa = async (req, res) => {
     res.status(500).json({ error: "Failed to update fatwa" });
   }
 };
+
+
+
 
 // Soft delete
 exports.deleteFatwa = async (req, res) => {
