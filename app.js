@@ -20,6 +20,7 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/stats', require('./routes/statusRoutes'));
 app.use('/api/questions', require('./routes/questionsRoutes'));
 app.use('/questions', require('./routes/SawaljawabRoutes'));
+app.use('/api/activity', require("./routes/activityRoutes.js"));
 
 // Newly added routes
 app.use('/api/aleem', require('./routes/aleemRoutes.js'));   // 👳 UlmaeKaram entries
