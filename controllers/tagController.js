@@ -1,5 +1,5 @@
-const db = require("../config/db");
-const path = require("path");
+const db = require("../config/db"); // this is the mysql2/promise pool
+// const path = require("path"); // not used; remove if unnecessary
 
 // ✅ Create new tag
 exports.createTag = async (req, res) => {
@@ -16,7 +16,7 @@ exports.createTag = async (req, res) => {
       VALUES (?, ?, ?, ?, ?, 1)
     `;
 
-    const [result] = await db.promise().query(sql, [
+    const [result] = await db.query(sql, [
       Name,
       slug,
       iconClass || null,
@@ -38,8 +38,8 @@ exports.createTag = async (req, res) => {
 // ✅ Get all active tags (without blob, with pagination)
 exports.getAllTags = async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 10;
-    const offset = parseInt(req.query.offset) || 0;
+    const limit = Number.parseInt(req.query.limit, 10) || 10;
+    const offset = Number.parseInt(req.query.offset, 10) || 0;
 
     const sql = `
       SELECT id, Name, slug, iconClass, AboutTags, isActive
@@ -49,7 +49,7 @@ exports.getAllTags = async (req, res) => {
       LIMIT ? OFFSET ?
     `;
 
-    const [rows] = await db.promise().query(sql, [limit, offset]);
+    const [rows] = await db.query(sql, [limit, offset]);
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error("❌ Error fetching tags:", error);
@@ -68,7 +68,7 @@ exports.getTagById = async (req, res) => {
       WHERE id = ? AND isActive = 1
     `;
 
-    const [rows] = await db.promise().query(sql, [id]);
+    const [rows] = await db.query(sql, [id]);
 
     if (rows.length === 0) {
       return res.status(404).json({ error: "Tag not found" });
@@ -87,16 +87,16 @@ exports.getTagCoverById = async (req, res) => {
     const { id } = req.params;
 
     const sql = "SELECT tagsCover FROM Tags WHERE id = ? AND isActive = 1";
-    const [rows] = await db.promise().query(sql, [id]);
+    const [rows] = await db.query(sql, [id]);
 
     if (rows.length === 0 || !rows[0].tagsCover) {
       return res.status(404).json({ error: "Cover image not found" });
     }
 
-    // Detect image type (optional)
     const imgBuffer = rows[0].tagsCover;
-    const isPng =
-      imgBuffer[0] === 0x89 && imgBuffer[1] === 0x50 && imgBuffer[2] === 0x4e;
+
+    // crude magic-number sniff: 0x89 0x50 0x4E = PNG, else assume JPEG
+    const isPng = imgBuffer[0] === 0x89 && imgBuffer[1] === 0x50 && imgBuffer[2] === 0x4e;
     const contentType = isPng ? "image/png" : "image/jpeg";
 
     res.set("Content-Type", contentType);
@@ -115,7 +115,7 @@ exports.updateTag = async (req, res) => {
     const coverFile = req.file ? req.file.buffer : null;
 
     // Check if tag exists
-    const [check] = await db.promise().query(
+    const [check] = await db.query(
       "SELECT id FROM Tags WHERE id = ? AND isActive = 1",
       [id]
     );
@@ -142,7 +142,7 @@ exports.updateTag = async (req, res) => {
       params = [Name, slug, iconClass || null, AboutTags || null, id];
     }
 
-    await db.promise().query(sql, params);
+    await db.query(sql, params);
 
     res.json({ success: true, message: "Tag updated successfully" });
   } catch (error) {
@@ -156,7 +156,7 @@ exports.deleteTag = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const [check] = await db.promise().query(
+    const [check] = await db.query(
       "SELECT id FROM Tags WHERE id = ? AND isActive = 1",
       [id]
     );
@@ -165,7 +165,7 @@ exports.deleteTag = async (req, res) => {
       return res.status(404).json({ error: "Tag not found" });
     }
 
-    await db.promise().query("UPDATE Tags SET isActive = 0 WHERE id = ?", [id]);
+    await db.query("UPDATE Tags SET isActive = 0 WHERE id = ?", [id]);
 
     res.json({ success: true, message: "Tag soft deleted successfully" });
   } catch (error) {
