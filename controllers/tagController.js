@@ -1,17 +1,22 @@
 const db = require("../config/db");
+const path = require("path");
 
-// Create new tag
+// ✅ Create new tag
 exports.createTag = async (req, res) => {
   try {
     const { Name, slug, iconClass, AboutTags } = req.body;
     const coverFile = req.file ? req.file.buffer : null;
+
+    if (!Name || !slug) {
+      return res.status(400).json({ error: "Name and slug are required" });
+    }
 
     const sql = `
       INSERT INTO Tags (Name, slug, iconClass, tagsCover, AboutTags, isActive)
       VALUES (?, ?, ?, ?, ?, 1)
     `;
 
-    const result = await db.query(sql, [
+    const [result] = await db.promise().query(sql, [
       Name,
       slug,
       iconClass || null,
@@ -19,16 +24,18 @@ exports.createTag = async (req, res) => {
       AboutTags || null,
     ]);
 
-    res
-      .status(201)
-      .json({ message: "Tag created successfully", id: result.insertId });
+    res.status(201).json({
+      success: true,
+      message: "Tag created successfully",
+      id: result.insertId,
+    });
   } catch (error) {
-    console.error(error);
+    console.error("❌ Error creating tag:", error);
     res.status(500).json({ error: "Failed to create tag" });
   }
 };
 
-// Get all tags (without blob, with pagination)
+// ✅ Get all active tags (without blob, with pagination)
 exports.getAllTags = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
@@ -36,65 +43,86 @@ exports.getAllTags = async (req, res) => {
 
     const sql = `
       SELECT id, Name, slug, iconClass, AboutTags, isActive
-      FROM Tags WHERE isActive = 1
+      FROM Tags
+      WHERE isActive = 1
+      ORDER BY id DESC
       LIMIT ? OFFSET ?
     `;
-    const rows = await db.query(sql, [limit, offset]);
 
-    res.json(rows);
+    const [rows] = await db.promise().query(sql, [limit, offset]);
+    res.json({ success: true, data: rows });
   } catch (error) {
-    console.error(error);
+    console.error("❌ Error fetching tags:", error);
     res.status(500).json({ error: "Failed to fetch tags" });
   }
 };
 
-// Get tag by ID (without blob)
+// ✅ Get tag by ID (without blob)
 exports.getTagById = async (req, res) => {
   try {
     const { id } = req.params;
 
     const sql = `
       SELECT id, Name, slug, iconClass, AboutTags, isActive
-      FROM Tags WHERE id = ? AND isActive = 1
+      FROM Tags
+      WHERE id = ? AND isActive = 1
     `;
-    const rows = await db.query(sql, [id]);
 
-    if (rows.length === 0)
+    const [rows] = await db.promise().query(sql, [id]);
+
+    if (rows.length === 0) {
       return res.status(404).json({ error: "Tag not found" });
+    }
 
-    res.json(rows[0]);
+    res.json({ success: true, data: rows[0] });
   } catch (error) {
-    console.error(error);
+    console.error("❌ Error fetching tag by ID:", error);
     res.status(500).json({ error: "Failed to fetch tag" });
   }
 };
 
-// Get cover image by ID
+// ✅ Get tag cover image (BLOB to image)
 exports.getTagCoverById = async (req, res) => {
   try {
     const { id } = req.params;
 
     const sql = "SELECT tagsCover FROM Tags WHERE id = ? AND isActive = 1";
-    const rows = await db.query(sql, [id]);
+    const [rows] = await db.promise().query(sql, [id]);
 
     if (rows.length === 0 || !rows[0].tagsCover) {
       return res.status(404).json({ error: "Cover image not found" });
     }
 
-    res.set("Content-Type", "image/jpeg"); // adjust if PNG
-    res.send(rows[0].tagsCover);
+    // Detect image type (optional)
+    const imgBuffer = rows[0].tagsCover;
+    const isPng =
+      imgBuffer[0] === 0x89 && imgBuffer[1] === 0x50 && imgBuffer[2] === 0x4e;
+    const contentType = isPng ? "image/png" : "image/jpeg";
+
+    res.set("Content-Type", contentType);
+    res.send(imgBuffer);
   } catch (error) {
-    console.error(error);
+    console.error("❌ Error fetching cover image:", error);
     res.status(500).json({ error: "Failed to fetch cover image" });
   }
 };
 
-// Update tag (with optional new cover image)
+// ✅ Update tag (with or without cover image)
 exports.updateTag = async (req, res) => {
   try {
     const { id } = req.params;
     const { Name, slug, iconClass, AboutTags } = req.body;
     const coverFile = req.file ? req.file.buffer : null;
+
+    // Check if tag exists
+    const [check] = await db.promise().query(
+      "SELECT id FROM Tags WHERE id = ? AND isActive = 1",
+      [id]
+    );
+
+    if (check.length === 0) {
+      return res.status(404).json({ error: "Tag not found" });
+    }
 
     let sql, params;
 
@@ -104,36 +132,44 @@ exports.updateTag = async (req, res) => {
         SET Name = ?, slug = ?, iconClass = ?, AboutTags = ?, tagsCover = ?
         WHERE id = ? AND isActive = 1
       `;
-      params = [Name, slug, iconClass, AboutTags, coverFile, id];
+      params = [Name, slug, iconClass || null, AboutTags || null, coverFile, id];
     } else {
       sql = `
         UPDATE Tags
         SET Name = ?, slug = ?, iconClass = ?, AboutTags = ?
         WHERE id = ? AND isActive = 1
       `;
-      params = [Name, slug, iconClass, AboutTags, id];
+      params = [Name, slug, iconClass || null, AboutTags || null, id];
     }
 
-    await db.query(sql, params);
+    await db.promise().query(sql, params);
 
-    res.json({ message: "Tag updated successfully" });
+    res.json({ success: true, message: "Tag updated successfully" });
   } catch (error) {
-    console.error(error);
+    console.error("❌ Error updating tag:", error);
     res.status(500).json({ error: "Failed to update tag" });
   }
 };
 
-// Soft delete
+// ✅ Soft delete tag (set isActive = 0)
 exports.deleteTag = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const sql = "UPDATE Tags SET isActive = 0 WHERE id = ?";
-    await db.query(sql, [id]);
+    const [check] = await db.promise().query(
+      "SELECT id FROM Tags WHERE id = ? AND isActive = 1",
+      [id]
+    );
 
-    res.json({ message: "Tag soft deleted successfully" });
+    if (check.length === 0) {
+      return res.status(404).json({ error: "Tag not found" });
+    }
+
+    await db.promise().query("UPDATE Tags SET isActive = 0 WHERE id = ?", [id]);
+
+    res.json({ success: true, message: "Tag soft deleted successfully" });
   } catch (error) {
-    console.error(error);
+    console.error("❌ Error deleting tag:", error);
     res.status(500).json({ error: "Failed to delete tag" });
   }
 };

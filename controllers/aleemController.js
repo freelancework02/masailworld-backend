@@ -1,17 +1,21 @@
-const db = require("../config/db");
+const db = require('../config/db');
 
-// Create new entry
+// Create a new Aleem entry with optional profile image
 exports.createAleem = async (req, res) => {
   try {
     const { Ulmaekaram, Name, Position, About } = req.body;
     const profileFile = req.file ? req.file.buffer : null;
+
+    if (!Name) {
+      return res.status(400).json({ success: false, error: "Name is required" });
+    }
 
     const sql = `
       INSERT INTO NewAleemKiEntry (Ulmaekaram, Name, ProfileImg, Position, About, isActive)
       VALUES (?, ?, ?, ?, ?, 1)
     `;
 
-    const result = await db.query(sql, [
+    const [result] = await db.query(sql, [
       Ulmaekaram || null,
       Name,
       profileFile,
@@ -19,38 +23,36 @@ exports.createAleem = async (req, res) => {
       About || null,
     ]);
 
-    res.status(201).json({
-      message: "Entry created successfully",
-      id: result.insertId,
-    });
+    res.status(201).json({ success: true, message: "Entry created successfully", id: result.insertId });
   } catch (error) {
     console.error("❌ createAleem error:", error);
-    res.status(500).json({ error: "Failed to create entry" });
+    res.status(500).json({ success: false, error: "Failed to create entry" });
   }
 };
 
-// Get all (without blob, with pagination)
+// Get all Aleem entries (without profile image) with pagination
 exports.getAllAleem = async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 10;
-    const offset = parseInt(req.query.offset) || 0;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const offset = parseInt(req.query.offset, 10) || 0;
 
     const sql = `
       SELECT id, Ulmaekaram, Name, Position, About, isActive
       FROM NewAleemKiEntry
       WHERE isActive = 1
+      ORDER BY id DESC
       LIMIT ? OFFSET ?
     `;
-    const rows = await db.query(sql, [limit, offset]);
 
-    res.json(rows);
+    const [rows] = await db.query(sql, [limit, offset]);
+    res.json({ success: true, data: rows });
   } catch (error) {
     console.error("❌ getAllAleem error:", error);
-    res.status(500).json({ error: "Failed to fetch entries" });
+    res.status(500).json({ success: false, error: "Failed to fetch entries" });
   }
 };
 
-// Get by ID (without blob)
+// Get Aleem entry by ID (without profile image)
 exports.getAleemById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -60,85 +62,95 @@ exports.getAleemById = async (req, res) => {
       FROM NewAleemKiEntry
       WHERE id = ? AND isActive = 1
     `;
-    const rows = await db.query(sql, [id]);
+
+    const [rows] = await db.query(sql, [id]);
 
     if (!rows.length) {
-      return res.status(404).json({ error: "Entry not found" });
+      return res.status(404).json({ success: false, error: "Entry not found" });
     }
 
-    res.json(rows[0]);
+    res.json({ success: true, data: rows[0] });
   } catch (error) {
     console.error("❌ getAleemById error:", error);
-    res.status(500).json({ error: "Failed to fetch entry" });
+    res.status(500).json({ success: false, error: "Failed to fetch entry" });
   }
 };
 
-// Get profile image by ID
+// Get profile image by Aleem ID
 exports.getProfileById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const sql =
-      "SELECT ProfileImg FROM NewAleemKiEntry WHERE id = ? AND isActive = 1";
-    const rows = await db.query(sql, [id]);
+    const sql = `
+      SELECT ProfileImg
+      FROM NewAleemKiEntry
+      WHERE id = ? AND isActive = 1
+    `;
+    const [rows] = await db.query(sql, [id]);
 
     if (!rows.length || !rows[0].ProfileImg) {
-      return res.status(404).json({ error: "Profile image not found" });
+      return res.status(404).json({ success: false, error: "Profile image not found" });
     }
 
-    res.set("Content-Type", "image/jpeg");
+    res.set("Content-Type", "image/jpeg"); // adjust if storing PNG or other format
     res.send(rows[0].ProfileImg);
   } catch (error) {
     console.error("❌ getProfileById error:", error);
-    res.status(500).json({ error: "Failed to fetch profile image" });
+    res.status(500).json({ success: false, error: "Failed to fetch profile image" });
   }
 };
 
-// Update entry
+// Update Aleem entry (partial update, optional profile image)
 exports.updateAleem = async (req, res) => {
   try {
     const { id } = req.params;
     const { Ulmaekaram, Name, Position, About } = req.body;
     const profileFile = req.file ? req.file.buffer : null;
 
-    let sql, params;
+    const fields = [];
+    const values = [];
 
-    if (profileFile) {
-      sql = `
-        UPDATE NewAleemKiEntry
-        SET Ulmaekaram = ?, Name = ?, Position = ?, About = ?, ProfileImg = ?
-        WHERE id = ? AND isActive = 1
-      `;
-      params = [Ulmaekaram || null, Name, Position || null, About || null, profileFile, id];
-    } else {
-      sql = `
-        UPDATE NewAleemKiEntry
-        SET Ulmaekaram = ?, Name = ?, Position = ?, About = ?
-        WHERE id = ? AND isActive = 1
-      `;
-      params = [Ulmaekaram || null, Name, Position || null, About || null, id];
+    if (Ulmaekaram !== undefined) { fields.push("Ulmaekaram = ?"); values.push(Ulmaekaram); }
+    if (Name !== undefined) { fields.push("Name = ?"); values.push(Name); }
+    if (Position !== undefined) { fields.push("Position = ?"); values.push(Position); }
+    if (About !== undefined) { fields.push("About = ?"); values.push(About); }
+    if (profileFile) { fields.push("ProfileImg = ?"); values.push(profileFile); }
+
+    if (fields.length === 0) {
+      return res.status(400).json({ success: false, error: "No fields provided to update" });
     }
 
-    await db.query(sql, params);
+    values.push(id);
 
-    res.json({ message: "Entry updated successfully" });
+    const sql = `UPDATE NewAleemKiEntry SET ${fields.join(", ")} WHERE id = ? AND isActive = 1`;
+    const [result] = await db.query(sql, values);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, error: "Entry not found or inactive" });
+    }
+
+    res.json({ success: true, message: "Entry updated successfully" });
   } catch (error) {
     console.error("❌ updateAleem error:", error);
-    res.status(500).json({ error: "Failed to update entry" });
+    res.status(500).json({ success: false, error: "Failed to update entry" });
   }
 };
 
-// Soft delete
+// Soft delete Aleem entry
 exports.deleteAleem = async (req, res) => {
   try {
     const { id } = req.params;
 
     const sql = "UPDATE NewAleemKiEntry SET isActive = 0 WHERE id = ?";
-    await db.query(sql, [id]);
+    const [result] = await db.query(sql, [id]);
 
-    res.json({ message: "Entry soft deleted successfully" });
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, error: "Entry not found or already deleted" });
+    }
+
+    res.json({ success: true, message: "Entry soft deleted successfully" });
   } catch (error) {
     console.error("❌ deleteAleem error:", error);
-    res.status(500).json({ error: "Failed to delete entry" });
+    res.status(500).json({ success: false, error: "Failed to delete entry" });
   }
 };

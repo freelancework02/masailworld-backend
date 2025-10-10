@@ -9,7 +9,7 @@ exports.createQuestion = async (req, res) => {
   }
 
   try {
-    const result = await pool.query(
+    const [result] = await pool.query(
       `INSERT INTO Questions (Name, Email, Subject, QuestionText) VALUES (?, ?, ?, ?)`,
       [Name || null, Email, Subject, QuestionText]
     );
@@ -26,7 +26,7 @@ exports.getQuestionById = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const rows = await pool.query(`SELECT * FROM Questions WHERE QuestionID = ?`, [id]);
+    const [rows] = await pool.query(`SELECT * FROM Questions WHERE QuestionID = ?`, [id]);
 
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Question not found.' });
@@ -43,60 +43,43 @@ exports.getQuestionById = async (req, res) => {
 
 exports.updateQuestion = async (req, res) => {
   const { id } = req.params;
-  const { Name, Email, Subject, QuestionText, Answer, AnsweredByID, AnsweredByUsername, ModifiedByID, ModifiedByUsername } = req.body;
+  const {
+    Name, Email, Subject, QuestionText,
+    Answer, AnsweredByID, AnsweredByUsername,
+    ModifiedByID, ModifiedByUsername
+  } = req.body;
 
   try {
-    const rows = await pool.query(`SELECT * FROM Questions WHERE QuestionID = ?`, [id]);
-    if (rows.length === 0) {
+    const [existing] = await pool.query(`SELECT * FROM Questions WHERE QuestionID = ?`, [id]);
+    if (existing.length === 0) {
       return res.status(404).json({ error: 'Question not found.' });
     }
 
     const fields = [];
     const values = [];
 
-    if (Name !== undefined) {
-      fields.push('Name = ?');
-      values.push(Name);
-    }
-    if (Email !== undefined) {
-      fields.push('Email = ?');
-      values.push(Email);
-    }
-    if (Subject !== undefined) {
-      fields.push('Subject = ?');
-      values.push(Subject);
-    }
-    if (QuestionText !== undefined) {
-      fields.push('QuestionText = ?');
-      values.push(QuestionText);
-    }
+    const addField = (field, value) => {
+      if (value !== undefined) {
+        fields.push(`${field} = ?`);
+        values.push(value);
+      }
+    };
+
+    addField('Name', Name);
+    addField('Email', Email);
+    addField('Subject', Subject);
+    addField('QuestionText', QuestionText);
+
     if (Answer !== undefined) {
-      fields.push('Answer = ?');
-      values.push(Answer);
-
+      addField('Answer', Answer);
       fields.push('AnsweredAt = NOW()');
-
-      // Save who submitted the answer
-      if (AnsweredByID !== undefined) {
-        fields.push('AnsweredByID = ?');
-        values.push(AnsweredByID);
-      }
-      if (AnsweredByUsername !== undefined) {
-        fields.push('AnsweredByUsername = ?');
-        values.push(AnsweredByUsername);
-      }
+      addField('AnsweredByID', AnsweredByID);
+      addField('AnsweredByUsername', AnsweredByUsername);
     }
 
-    // For any modification, update ModifiedAt and ModifiedBy info
     fields.push('ModifiedAt = NOW()');
-    if (ModifiedByID !== undefined) {
-      fields.push('ModifiedByID = ?');
-      values.push(ModifiedByID);
-    }
-    if (ModifiedByUsername !== undefined) {
-      fields.push('ModifiedByUsername = ?');
-      values.push(ModifiedByUsername);
-    }
+    addField('ModifiedByID', ModifiedByID);
+    addField('ModifiedByUsername', ModifiedByUsername);
 
     if (fields.length === 0) {
       return res.status(400).json({ error: 'No fields provided to update.' });
@@ -114,12 +97,13 @@ exports.updateQuestion = async (req, res) => {
 };
 
 
+
 // Delete question by ID
 exports.deleteQuestion = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const result = await pool.query(`DELETE FROM Questions WHERE QuestionID = ?`, [id]);
+    const [result] = await pool.query(`DELETE FROM Questions WHERE QuestionID = ?`, [id]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Question not found or already deleted.' });
@@ -135,7 +119,7 @@ exports.deleteQuestion = async (req, res) => {
 // Optional: Get all questions (for management UI)
 exports.getAllQuestions = async (req, res) => {
   try {
-    const rows = await pool.query(`SELECT * FROM Questions ORDER BY CreatedAt DESC`);
+    const [rows] = await pool.query(`SELECT * FROM Questions ORDER BY CreatedAt DESC`);
     res.json({ success: true, questions: rows });
   } catch (error) {
     console.error('Error fetching questions:', error);
