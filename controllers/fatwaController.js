@@ -1,6 +1,11 @@
 // controllers/fatwaController.js
 const db = require("../config/db"); // MySQL2 promise pool
 
+const isLikelyBot = (req) => {
+  const ua = (req.get('user-agent') || '').toLowerCase();
+  return !ua || /bot|spider|crawl|preview|facebookexternalhit|whatsapp|slurp|bing|vkshare|telegrambot/.test(ua);
+};
+
 // ✅ Insert: from website (only question, pending)
 exports.addQuestionFromWebsite = async (req, res) => {
   try {
@@ -281,5 +286,117 @@ exports.answerFatwa = async (req, res) => {
   } catch (error) {
     console.error("❌ answerFatwa error:", error);
     res.status(500).json({ success: false, error: "Failed to answer fatwa" });
+  }
+};
+
+
+
+
+// Likes and View Section start from here 
+
+// ✅ Unique view (once per anon per day)
+exports.addView = async (req, res) => {
+  try {
+    const fatwaId = parseInt(req.params.id, 10);
+    if (!fatwaId) return res.status(400).json({ error: "Invalid id" });
+    if (isLikelyBot(req)) return res.status(204).end(); // ignore bots silently
+
+    const anon = req.anonHash; // from middleware
+    const [rows] = await db.query(
+      `INSERT IGNORE INTO fatwa_views_daily (fatwa_id, anon_id, view_date)
+       VALUES (?, ?, CURRENT_DATE())`,
+      [fatwaId, anon]
+    );
+
+    // If a row was inserted, increment aggregate
+    if (rows.affectedRows === 1) {
+      await db.query(
+        `UPDATE fatawa SET Views = Views + 1 WHERE id = ? AND isActive = 1`,
+        [fatwaId]
+      );
+      return res.json({ counted: true });
+    } else {
+      return res.json({ counted: false }); // already counted today
+    }
+  } catch (err) {
+    console.error("❌ addView error:", err);
+    res.status(500).json({ error: "Failed to record view" });
+  }
+};
+
+// ✅ Like (idempotent)
+exports.likeFatwa = async (req, res) => {
+  try {
+    const fatwaId = parseInt(req.params.id, 10);
+    if (!fatwaId) return res.status(400).json({ error: "Invalid id" });
+    if (isLikelyBot(req)) return res.status(204).end();
+
+    const anon = req.anonHash;
+
+    const [rows] = await db.query(
+      `INSERT IGNORE INTO fatwa_likes (fatwa_id, anon_id) VALUES (?, ?)`,
+      [fatwaId, anon]
+    );
+
+    if (rows.affectedRows === 1) {
+      await db.query(
+        `UPDATE fatawa SET Likes = Likes + 1 WHERE id = ? AND isActive = 1`,
+        [fatwaId]
+      );
+      return res.json({ liked: true });
+    } else {
+      return res.json({ liked: true }); // already liked, still true
+    }
+  } catch (err) {
+    console.error("❌ likeFatwa error:", err);
+    res.status(500).json({ error: "Failed to like fatwa" });
+  }
+};
+
+// ✅ Unlike (idempotent)
+exports.unlikeFatwa = async (req, res) => {
+  try {
+    const fatwaId = parseInt(req.params.id, 10);
+    if (!fatwaId) return res.status(400).json({ error: "Invalid id" });
+
+    const anon = req.anonHash;
+
+    const [rows] = await db.query(
+      `DELETE FROM fatwa_likes WHERE fatwa_id = ? AND anon_id = ?`,
+      [fatwaId, anon]
+    );
+
+    if (rows.affectedRows === 1) {
+      await db.query(
+        `UPDATE fatawa SET Likes = GREATEST(Likes - 1, 0) WHERE id = ? AND isActive = 1`,
+        [fatwaId]
+      );
+      return res.json({ liked: false });
+    } else {
+      return res.json({ liked: false }); // wasn’t liked anyway
+    }
+  } catch (err) {
+    console.error("❌ unlikeFatwa error:", err);
+    res.status(500).json({ error: "Failed to unlike fatwa" });
+  }
+};
+
+// ✅ For UI: has this anon liked it?
+exports.myLikeStatus = async (req, res) => {
+  try {
+    const fatwaId = parseInt(req.params.id, 10);
+    if (!fatwaId) return res.status(400).json({ error: "Invalid id" });
+
+    const anon = req.anonHash;
+
+    const [rows] = await db.query(
+      `SELECT 1 FROM fatwa_likes WHERE fatwa_id = ? AND anon_id = ? LIMIT 1`,
+      [fatwaId, anon]
+    );
+
+    res.json({ liked: rows.length > 0 });
+  } catch (err) {
+    console.error("❌ myLikeStatus error:", err);
+    res.status(500).json({ error: "Failed to fetch like status" });
   }
 };

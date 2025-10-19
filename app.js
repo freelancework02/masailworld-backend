@@ -2,6 +2,8 @@ const express = require('express');
 const app = express();
 const dotenv = require('dotenv');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
+const anonId = require('./middleware/anonId');
 
 dotenv.config();
 const port = process.env.PORT || 5000;
@@ -9,6 +11,13 @@ const port = process.env.PORT || 5000;
 app.use(express.json());
 app.use(cors());
 
+app.use(cookieParser());
+app.use(anonId);
+
+app.use(cors({
+  origin: ['http://localhost:5501','http://127.0.0.1:5501','https://masailworld.com'],
+  credentials: true
+}));
 // ------------------- Routes -------------------
 app.use('/api/fatwa', require('./routes/fatwaRoutes'));
 app.use('/api/article', require('./routes/articleRoutes'));
